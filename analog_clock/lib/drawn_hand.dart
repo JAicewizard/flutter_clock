@@ -8,8 +8,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
 /// [CustomPainter] that draws a clock hand.
-class HandPainter extends CustomPainter {
-  HandPainter(
+class TimePainter extends CustomPainter {
+  TimePainter(
       {@required this.secondHandColour,
       @required this.hourArcColour,
       @required this.backgroundControler,
@@ -28,14 +28,9 @@ class HandPainter extends CustomPainter {
     Offset center = Offset(size.width / 2, size.height / 2);
     DateTime time = DateTime.now();
 
-    Paint secondHandPaint = Paint();
-    secondHandPaint.color = secondHandColour;
-
-    Paint hourArcPaint = Paint();
-    hourArcPaint.color = hourArcColour;
-
-    Paint clearPaint = Paint();
-    clearPaint.color = backgroundControler.bottomColor;
+    final Paint secondHandPaint = Paint()..color = secondHandColour;
+    final Paint hourArcPaint = Paint()..color = hourArcColour;
+    final Paint clearPaint = Paint()..color = backgroundControler.color;
 
     final double hourFraction = (time.hour * 60 + time.minute) / 1440;
     final double hourArcStart = hourFraction <= 0.5
@@ -51,7 +46,7 @@ class HandPainter extends CustomPainter {
         (time.second * 1000 + time.millisecond) * 2 * math.pi / 60000 -
             math.pi / 2;
 
-    Rect rect = Rect.fromCircle(center: center, radius: radius);
+    final Rect rect = Rect.fromCircle(center: center, radius: radius);
 
     canvas.drawArc(
         rect, hourArcStart, hourArcEnd - hourArcStart, true, hourArcPaint);
@@ -84,46 +79,35 @@ class HandPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(HandPainter oldDelegate) {
-    return true;
-  }
+  bool shouldRepaint(TimePainter oldDelegate) =>
+      oldDelegate.secondHandColour == secondHandColour &&
+      oldDelegate.hourArcColour == hourArcColour &&
+      oldDelegate.backgroundControler == backgroundControler;
 }
 
-/// [CustomPainter] that paints the background gradient.
+/// [CustomPainter] that paints the background gradient.`
 class BackgroundPainter extends CustomPainter {
-  final BackgroundControler controler;
   BackgroundPainter({@required this.controler}) : super(repaint: controler);
+
+  final BackgroundControler controler;
 
   @override
   void paint(Canvas canvas, Size size) {
-    Rect rect = Rect.fromPoints(Offset(0, 0), Offset(size.width, size.height));
-    final Gradient gradient = LinearGradient(
-      begin: Alignment.topCenter,
-      end: Alignment.bottomCenter,
-      colors: <Color>[
-        controler.topColor,
-        controler.bottomColor,
-      ],
-      stops: [
-        0.2,
-        0.8,
-      ],
-    );
-    final Paint paint = Paint()..shader = gradient.createShader(rect);
+    final Rect rect =
+        Rect.fromPoints(Offset(0, 0), Offset(size.width, size.height));
+    final Paint paint = Paint()..color = controler.color;
+
     canvas.drawRect(rect, paint);
   }
 
   @override
-  bool shouldRepaint(BackgroundPainter oldDelegate) {
-    return true;
-  }
+  bool shouldRepaint(BackgroundPainter oldDelegate) =>
+      oldDelegate.controler != controler;
 }
 
 class BackgroundControler extends ChangeNotifier {
-  Color _topColorBefore;
-  Color _topColorAfter;
-  Color _bottomColorBefore;
-  Color _bottomColorAfter;
+  Color _colorBefore;
+  Color _colorAfter;
 
   DateTime _animationStart;
   Ticker _ticker;
@@ -132,49 +116,29 @@ class BackgroundControler extends ChangeNotifier {
     _ticker = Ticker(_tick);
   }
 
-  Color get topColor {
+  Color get color {
     if (_animationStart == null) {
-      return _topColorAfter;
+      return _colorAfter;
     }
     Duration dif = DateTime.now().difference(_animationStart);
     double dt = dif.inMilliseconds / 1000;
     if (dt < 0 || dt > 1) {
       _animationStart = null;
       _ticker.stop();
-      return _topColorAfter;
+      return _colorAfter;
     }
     return Color.alphaBlend(
-        _topColorAfter.withOpacity(Curves.easeInOut.transform(dt)),
-        _topColorBefore);
+        _colorAfter.withOpacity(Curves.easeInOut.transform(dt)), _colorBefore);
   }
 
-  Color get bottomColor {
-    if (_animationStart == null) {
-      return _bottomColorAfter;
-    }
-    Duration dif = DateTime.now().difference(_animationStart);
-    double dt = dif.inMilliseconds / 1000;
-    if (dt < 0 || dt > 1) {
-      _animationStart = null;
-      _ticker.stop();
-      return _bottomColorAfter;
-    }
-    return Color.alphaBlend(
-        _bottomColorAfter.withOpacity(Curves.easeInOut.transform(dt)),
-        _bottomColorBefore);
-  }
-
-  set color(List<Color> colors) {
-    assert(colors.length == 2);
-
-    _topColorBefore = topColor;
-    _topColorAfter = colors[0];
-
-    _bottomColorBefore = bottomColor;
-    _bottomColorAfter = colors[1];
-    if (_topColorBefore == null || _bottomColorBefore == null) {
+  set color(Color newColor) {
+    _colorBefore = color;
+    _colorAfter = newColor;
+    if (_colorBefore == null) {
+      notifyListeners(); //to update the background painter for the first frame
       return;
     }
+
     _ticker.stop();
     _animationStart = DateTime.now();
     _ticker.start();

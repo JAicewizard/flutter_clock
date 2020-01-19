@@ -3,29 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
-class SecondTimer extends ChangeNotifier {
-  Timer _timer;
-
-  SecondTimer() {
-    _onTick();
-  }
-
-  @override
-  dispose() {
-    _timer.cancel();
-    super.dispose();
-  }
-
-  _onTick() {
-    DateTime _now = DateTime.now();
-    _timer = Timer(
-      Duration(seconds: 1) - Duration(milliseconds: _now.millisecond),
-      _onTick,
-    );
-    notifyListeners();
-  }
-}
-
 class MinuteTimer extends ChangeNotifier {
   Timer _timer;
 

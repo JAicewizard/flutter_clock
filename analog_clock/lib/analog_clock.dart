@@ -44,17 +44,15 @@ class _AnalogClockState extends State<AnalogClock> {
   }
 
   set brightness(Brightness brightness) {
-    _backgroundControler.color = [
-      brightness != Brightness.light ? Colors.black : Colors.white,
-      brightness != Brightness.light ? Colors.black : Colors.white,
-    ];
+    _backgroundControler.color =
+        brightness != Brightness.light ? Colors.black : Colors.white;
   }
 
   @override
   Widget build(BuildContext context) {
     brightness = Theme.of(context).brightness;
     return CustomPaint(
-      foregroundPainter: HandPainter(
+      foregroundPainter: TimePainter(
           secondHandColour: Colors.yellowAccent[400].withOpacity(0.8),
           hourArcColour: Colors.blue.withOpacity(0.7),
           repaint: FrameNotifier(),
