@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'dart:async';
-
 import 'package:flutter_clock_helper/model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
@@ -27,62 +25,17 @@ class AnalogClock extends StatefulWidget {
 class _AnalogClockState extends State<AnalogClock> {
   MinuteTimer _minuteTimer = MinuteTimer();
   BackgroundControler _backgroundControler = BackgroundControler();
+
   @override
-  void initState() {
+  initState() {
     super.initState();
-    widget.model.addListener(_updateModel);
-    // Set the initial values.
-    _updateModel();
+    _minuteTimer.addListener(_updateSemantics);
   }
 
   @override
-  void didUpdateWidget(AnalogClock oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.model != oldWidget.model) {
-      oldWidget.model.removeListener(_updateModel);
-      widget.model.addListener(_updateModel);
-    }
-  }
-
-  @override
-  void dispose() {
-    _minuteTimer?.removeListener(_updateSemantics());
-    widget.model.removeListener(_updateModel);
+  dispose() {
+    _minuteTimer.removeListener(_updateSemantics);
     super.dispose();
-  }
-
-  void _updateModel() {
-    _backgroundControler.color = [
-      Color.alphaBlend(
-          Colors.red.withOpacity(
-              _backgroundColorBlend(widget.model.high, widget.model.unit)),
-          Colors.blue),
-      Color.alphaBlend(
-          Colors.red.withOpacity(
-              _backgroundColorBlend(widget.model.low, widget.model.unit)),
-          Colors.blue),
-    ];
-  }
-
-  double _backgroundColorBlend(num temp, TemperatureUnit unit) {
-    switch (unit) {
-      case TemperatureUnit.celsius:
-        double b = (temp - 5) / 30; // Range from 5-35C
-        if (b <= 0) {
-          b = 0;
-        } else if (b >= 1) {
-          b = 1;
-        }
-        return b;
-      case TemperatureUnit.fahrenheit:
-        double b = (temp - 40) / 55; // Range from 5-35C
-        if (b <= 0) {
-          b = 0;
-        } else if (b >= 1) {
-          b = 1;
-        }
-        return b;
-    }
   }
 
   _updateSemantics() {
@@ -90,32 +43,23 @@ class _AnalogClockState extends State<AnalogClock> {
     SemanticsService.announce(time, TextDirection.ltr);
   }
 
+  set brightness(Brightness brightness) {
+    _backgroundControler.color = [
+      brightness != Brightness.light ? Colors.black : Colors.white,
+      brightness != Brightness.light ? Colors.black : Colors.white,
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
-    final customTheme = Theme.of(context).brightness == Brightness.light
-        ? Theme.of(context).copyWith(
-            primaryColor: Color(0xFF4285F4),
-            highlightColor: Color(0xFF8AB4F8),
-            accentColor: Color(0xFF669DF6),
-          )
-        : Theme.of(context).copyWith(
-            primaryColor: Color(0xFFD2E3FC),
-            highlightColor: Color(0xFF4285F4),
-            accentColor: Color(0xFF8AB4F8),
-          );
-    return Container(
-      color: customTheme.backgroundColor,
-      child: Center(
-        child: SizedBox.expand(
-          child: CustomPaint(
-            foregroundPainter: HandPainter(
-              color: customTheme.primaryColor,
-              repaint: FrameNotifier(),
-            ),
-            painter: BackgroundPainter(controler: _backgroundControler),
-          ),
-        ),
-      ),
+    brightness = Theme.of(context).brightness;
+    return CustomPaint(
+      foregroundPainter: HandPainter(
+          secondHandColour: Colors.yellowAccent[400].withOpacity(0.8),
+          hourArcColour: Colors.blue.withOpacity(0.7),
+          repaint: FrameNotifier(),
+          backgroundControler: _backgroundControler),
+      painter: BackgroundPainter(controler: _backgroundControler),
     );
   }
 }

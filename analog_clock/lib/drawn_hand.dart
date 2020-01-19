@@ -5,66 +5,73 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter_clock_helper/model.dart';
 import 'package:flutter/scheduler.dart';
 
 /// [CustomPainter] that draws a clock hand.
 class HandPainter extends CustomPainter {
-  static const int semicircleLenth = 720;
-
-  HandPainter({@required this.color, Listenable repaint})
-      : assert(color != null),
+  HandPainter(
+      {@required this.secondHandColour,
+      @required this.hourArcColour,
+      @required this.backgroundControler,
+      Listenable repaint})
+      : assert(secondHandColour != null),
+        assert(hourArcColour != null),
         super(repaint: repaint);
-  final Color color;
 
-  List<Offset> secondsArcPoints;
-  double _radius = -1;
+  final Color secondHandColour;
+  final Color hourArcColour;
+  final BackgroundControler backgroundControler;
 
   @override
   void paint(Canvas canvas, Size size) {
-    double newRadius = _calcRadius(size);
+    double radius = _calcRadius(size);
     Offset center = Offset(size.width / 2, size.height / 2);
-    if (newRadius != _radius || _radius == -1) {
-      _radius = newRadius;
-      secondsArcPoints = calcPoints(center);
-    }
-
     DateTime time = DateTime.now();
 
-    int handWidth = (time.hour * 24 + time.minute) * 2 * semicircleLenth ~/ 720;
-    double circleSize = (time.minute * 60 + time.second) / 3600;
-    int handOffset =
-        (time.second * 1000 + time.millisecond) * 2 * semicircleLenth ~/ 60000;
+    Paint secondHandPaint = Paint();
+    secondHandPaint.color = secondHandColour;
 
-    //canvas.drawPath(makeHand(handOffset, handWidth, center), firstPaint());
+    Paint hourArcPaint = Paint();
+    hourArcPaint.color = hourArcColour;
 
-    Rect rect = Rect.fromCircle(center: center, radius: _radius);
-    double radCenter = handOffset / (2 * semicircleLenth) * 2 * math.pi;
-    double radWidtg = handWidth / (2 * semicircleLenth) * 2 * math.pi;
-    print(radWidtg);
+    Paint clearPaint = Paint();
+    clearPaint.color = backgroundControler.bottomColor;
+
+    final double hourFraction = (time.hour * 60 + time.minute) / 1440;
+    final double hourArcStart = hourFraction <= 0.5
+        ? -math.pi / 2
+        : 4 * math.pi * (hourFraction - 0.625);
+    final double hourArcEnd = hourFraction <= 0.5
+        ? 4 * math.pi * (hourFraction - 0.125)
+        : 3 * math.pi / 2;
+
+    final double secondHandWidth =
+        (time.minute * 60 + time.second) * 2 * math.pi / 3600;
+    final double secondHandCenter =
+        (time.second * 1000 + time.millisecond) * 2 * math.pi / 60000 -
+            math.pi / 2;
+
+    Rect rect = Rect.fromCircle(center: center, radius: radius);
+
     canvas.drawArc(
-        rect, radCenter - (radWidtg / 2), radWidtg, true, firstPaint());
+        rect, hourArcStart, hourArcEnd - hourArcStart, true, hourArcPaint);
 
-    canvas.drawCircle(center, circleSize * _radius, firstPaint());
-  }
+    canvas.drawArc(
+        rect.deflate(radius * 0.2),
+        secondHandCenter - (secondHandWidth / 2),
+        secondHandWidth,
+        true,
+        secondHandPaint);
 
-  Path makeHand(int offset, int width, Offset center) {
-    int start = offset - width ~/ 2;
-    if (start < 0) {
-      start += 2 * semicircleLenth;
-    }
-    Path path = Path()
-      ..addPolygon(
-          secondsArcPoints.sublist(start, start + width)..add(center), true);
-    return path;
-  }
+    canvas.drawCircle(rect.deflate(radius * 0.8).center,
+        rect.deflate(radius * 0.8).width / 2, clearPaint);
 
-  Paint firstPaint() {
-    Paint paint = Paint();
-    paint.color = color;
-    paint.isAntiAlias = true;
-    paint.style = PaintingStyle.fill;
-    return paint;
+    canvas.drawArc(rect.deflate(radius * 0.8), hourArcStart,
+        hourArcEnd - hourArcStart, true, hourArcPaint);
+
+    hourArcPaint.blendMode = BlendMode.multiply;
+    canvas.drawArc(
+        rect, hourArcStart, hourArcEnd - hourArcStart, true, hourArcPaint);
   }
 
   double _calcRadius(Size size) {
@@ -76,23 +83,13 @@ class HandPainter extends CustomPainter {
     }
   }
 
-  List<Offset> calcPoints(Offset center) {
-    double dt = math.pi / semicircleLenth;
-    return List<Offset>.generate(
-        semicircleLenth * 4,
-        (n) => Offset((math.sin(n * dt)), (-math.cos(n * dt)))
-            .scale(_radius, _radius)
-            .translate(center.dx, center.dy),
-        growable: false);
-  }
-
   @override
   bool shouldRepaint(HandPainter oldDelegate) {
     return true;
   }
 }
 
-/// [CustomPainter] that the background gradient.
+/// [CustomPainter] that paints the background gradient.
 class BackgroundPainter extends CustomPainter {
   final BackgroundControler controler;
   BackgroundPainter({@required this.controler}) : super(repaint: controler);
@@ -108,8 +105,8 @@ class BackgroundPainter extends CustomPainter {
         controler.bottomColor,
       ],
       stops: [
-        0.0,
-        1.0,
+        0.2,
+        0.8,
       ],
     );
     final Paint paint = Paint()..shader = gradient.createShader(rect);
@@ -127,18 +124,20 @@ class BackgroundControler extends ChangeNotifier {
   Color _topColorAfter;
   Color _bottomColorBefore;
   Color _bottomColorAfter;
+
   DateTime _animationStart;
   Ticker _ticker;
 
   BackgroundControler() {
     _ticker = Ticker(_tick);
   }
+
   Color get topColor {
     if (_animationStart == null) {
       return _topColorAfter;
     }
     Duration dif = DateTime.now().difference(_animationStart);
-    double dt = dif.inMilliseconds / 10000;
+    double dt = dif.inMilliseconds / 1000;
     if (dt < 0 || dt > 1) {
       _animationStart = null;
       _ticker.stop();
@@ -154,7 +153,7 @@ class BackgroundControler extends ChangeNotifier {
       return _bottomColorAfter;
     }
     Duration dif = DateTime.now().difference(_animationStart);
-    double dt = dif.inMilliseconds / 10000;
+    double dt = dif.inMilliseconds / 1000;
     if (dt < 0 || dt > 1) {
       _animationStart = null;
       _ticker.stop();
@@ -168,14 +167,15 @@ class BackgroundControler extends ChangeNotifier {
   set color(List<Color> colors) {
     assert(colors.length == 2);
 
-    _topColorBefore = _topColorAfter;
+    _topColorBefore = topColor;
     _topColorAfter = colors[0];
 
-    _bottomColorBefore = _bottomColorAfter;
+    _bottomColorBefore = bottomColor;
     _bottomColorAfter = colors[1];
     if (_topColorBefore == null || _bottomColorBefore == null) {
       return;
     }
+    _ticker.stop();
     _animationStart = DateTime.now();
     _ticker.start();
   }

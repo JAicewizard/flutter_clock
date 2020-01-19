@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_clock_helper/model.dart';
 import 'package:flutter/scheduler.dart';
 
 class SecondTimer extends ChangeNotifier {
