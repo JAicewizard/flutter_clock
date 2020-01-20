@@ -7,7 +7,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
-/// [CustomPainter] that draws a clock hand.
+/// [CustomPainter] that draws the clock face according to the specified colours.
+/// The background from the backgroundControler will be used
 class TimePainter extends CustomPainter {
   TimePainter(
       {@required this.secondHandColour,
@@ -28,29 +29,31 @@ class TimePainter extends CustomPainter {
     Offset center = Offset(size.width / 2, size.height / 2);
     DateTime time = DateTime.now();
 
-    final Paint secondHandPaint = Paint()..color = secondHandColour;
-    final Paint hourArcPaint = Paint()..color = hourArcColour;
-    final Paint clearPaint = Paint()..color = backgroundControler.color;
+    Paint secondHandPaint = Paint()..color = secondHandColour;
+    Paint hourArcPaint = Paint()..color = hourArcColour;
+    Paint clearPaint = Paint()..color = backgroundControler.color;
 
-    final double hourFraction = (time.hour * 60 + time.minute) / 1440;
-    final double hourArcStart = hourFraction <= 0.5
+    double hourFraction = (time.hour * 60 + time.minute) / 1440;
+    double hourArcStart = hourFraction <= 0.5
         ? -math.pi / 2
         : 4 * math.pi * (hourFraction - 0.625);
-    final double hourArcEnd = hourFraction <= 0.5
+    double hourArcEnd = hourFraction <= 0.5
         ? 4 * math.pi * (hourFraction - 0.125)
         : 3 * math.pi / 2;
 
-    final double secondHandWidth =
+    double secondHandWidth =
         (time.minute * 60 + time.second) * 2 * math.pi / 3600;
-    final double secondHandCenter =
+    double secondHandCenter =
         (time.second * 1000 + time.millisecond) * 2 * math.pi / 60000 -
             math.pi / 2;
 
-    final Rect rect = Rect.fromCircle(center: center, radius: radius);
+    Rect rect = Rect.fromCircle(center: center, radius: radius);
 
+    //draw blue backlayer so the black backlayer doesnt conflict
     canvas.drawArc(
         rect, hourArcStart, hourArcEnd - hourArcStart, true, hourArcPaint);
 
+    //draw the yellow layer
     canvas.drawArc(
         rect.deflate(radius * 0.2),
         secondHandCenter - (secondHandWidth / 2),
@@ -58,25 +61,22 @@ class TimePainter extends CustomPainter {
         true,
         secondHandPaint);
 
+    //remove the middle part
     canvas.drawCircle(rect.deflate(radius * 0.8).center,
         rect.deflate(radius * 0.8).width / 2, clearPaint);
 
+    //draw the blue back layer in the middle
     canvas.drawArc(rect.deflate(radius * 0.8), hourArcStart,
         hourArcEnd - hourArcStart, true, hourArcPaint);
 
+    //draw blue frontlayer with multiply to get green on top of yellow
     hourArcPaint.blendMode = BlendMode.multiply;
+    hourArcPaint.color = hourArcColour;
     canvas.drawArc(
         rect, hourArcStart, hourArcEnd - hourArcStart, true, hourArcPaint);
   }
 
-  double _calcRadius(Size size) {
-    bool isXLimmiting = size.aspectRatio < 1;
-    if (isXLimmiting) {
-      return (size.width * 0.8 / 2);
-    } else {
-      return (size.height * 0.8 / 2);
-    }
-  }
+  double _calcRadius(Size size) => size.height * 0.4;
 
   @override
   bool shouldRepaint(TimePainter oldDelegate) =>
